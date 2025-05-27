@@ -2,28 +2,62 @@ local rs = game:GetService("ReplicatedStorage")
 local shared = rs:WaitForChild("Shared")
 local world = require(shared.jecs_world)
 local components = require(shared.jecs_components)
+local utils = require(shared.Fish.utils)
 
 local system = {}
 
-local ALIGMENT_COEFFCIENT = 7
-local COHESION_COEFFCIENT = 5
-local SEPRATION_COEFFCIENT = 10
+local ALIGMENT_COEFFCIENT = 3
+local COHESION_COEFFCIENT = 2
+local SEPRATION_COEFFCIENT = 6
+local TARGET_COEFFCIENT = 0.5
+local OBSTACLE_COEFFCIENT = 100
 
 local MAX_SPERATION_DIST = 6
 local MAX_STEERING_SPEED = 30
+local MAX_VIEW_RANGE = 7
 
-function ClampMagnitude(v : Vector3, maxLength : number)
-    local mag = v.Magnitude
-    if mag > maxLength then
-        return v.Unit * maxLength
-    else
-        return v
-    end
+local RAY_PARAMS = RaycastParams.new()
+RAY_PARAMS.FilterType = Enum.RaycastFilterType.Exclude
+RAY_PARAMS.FilterDescendantsInstances = {workspace.Fishes}
+
+local target = Vector3.new(0,10,0)
+local DIRECTIONS = utils.GetDirections(60)
+
+function SteerTowards(v : vector, currVelocity : vector, maxSpeed : number)
+    local newV = vector.normalize(v) * maxSpeed - currVelocity
+    return utils.ClampMagnitude(newV, MAX_STEERING_SPEED)
 end
 
-function SteerTowards(v : vector, currVelocity : vector, maxSpeed : number, maxSteeringSpeed : number)
-    local newV = vector.normalize(v) * maxSpeed - currVelocity
-    return ClampMagnitude(newV, maxSteeringSpeed)
+function FindUnobstructedDirection(fishCFrame : CFrame) : (Vector3, boolean?)
+    local bestDir = fishCFrame.LookVector
+    local foundBest = false
+
+    for i, _dir in DIRECTIONS do
+        local dir : Vector3 = fishCFrame:VectorToWorldSpace(_dir)
+        if fishCFrame.LookVector:Dot(dir) > 0.5 then continue end
+
+        local res = workspace:Raycast(fishCFrame.Position, _dir.Unit * MAX_VIEW_RANGE, RAY_PARAMS)
+        local isPathObstructed = res and res.Instance
+
+        if isPathObstructed then continue end
+        
+        bestDir = dir
+        foundBest = true
+        break
+    end
+
+    return bestDir, foundBest
+end
+
+function CheckForObstruction(fishCFrame : CFrame, currVelocity : vector, maxSpeed : number) : Vector3
+    local ray = workspace:Raycast(fishCFrame.Position, fishCFrame.LookVector * MAX_VIEW_RANGE, RAY_PARAMS)
+    if not ray then return Vector3.zero end
+    
+    local unobstructedDir, foundBest = FindUnobstructedDirection(fishCFrame)
+    local unobstructedForce = SteerTowards(unobstructedDir, currVelocity, maxSpeed) * OBSTACLE_COEFFCIENT
+    if not foundBest or unobstructedForce ~= unobstructedForce then return Vector3.zero end
+    
+    return unobstructedForce
 end
 
 function system.solve(dt : number)
@@ -48,15 +82,26 @@ function system.solve(dt : number)
             avgAdjDir += adjFishVelocity
         end
 
+        if target then
+            local disp = target - fishCFrame.Position
+            local targetForce = SteerTowards(disp, fishVelocity, fishMaxSpeed) / (adjFishes+1) * TARGET_COEFFCIENT
+
+            if targetForce == targetForce then
+                acceleration += targetForce
+            end
+        end
+
+        acceleration += CheckForObstruction(fishCFrame, fishVelocity, fishMaxSpeed)
+
         if adjFishes > 0 then
             avgAdjPos /= adjFishes
             avgAdjDir /= adjFishes
 
             local offsetFromCenter = avgAdjPos - fishCFrame.Position
 
-            local alignmentForce = SteerTowards(avgAdjDir, fishVelocity, fishMaxSpeed, MAX_STEERING_SPEED) * ALIGMENT_COEFFCIENT
-            local cohesionForce = SteerTowards(offsetFromCenter, fishVelocity, fishMaxSpeed, MAX_STEERING_SPEED) * COHESION_COEFFCIENT
-            local seprationForce = SteerTowards(direction, fishVelocity, fishMaxSpeed, MAX_STEERING_SPEED) * SEPRATION_COEFFCIENT
+            local alignmentForce = SteerTowards(avgAdjDir, fishVelocity, fishMaxSpeed) * ALIGMENT_COEFFCIENT
+            local cohesionForce = SteerTowards(offsetFromCenter, fishVelocity, fishMaxSpeed) * COHESION_COEFFCIENT
+            local seprationForce = SteerTowards(direction, fishVelocity, fishMaxSpeed) * SEPRATION_COEFFCIENT
 
             if alignmentForce == alignmentForce then
                 acceleration += alignmentForce
@@ -72,7 +117,11 @@ function system.solve(dt : number)
         local randomJitter = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.2
         acceleration += randomJitter
 
-        world:set(fish, components.Velocity, ClampMagnitude(fishVelocity + (acceleration * dt), fishMaxSpeed))
+        local vel = utils.ClampMagnitude(fishVelocity + (acceleration * dt), fishMaxSpeed)
+        local newPos = fishCFrame.Position + vel * dt
+        local newCFrame = CFrame.lookAt(newPos, newPos + vel:Lerp(fishVelocity, 0.8))
+        world:set(fish, components.Velocity, vel)
+        world:set(fish, components.CFrame, newCFrame)
     end
 end
 

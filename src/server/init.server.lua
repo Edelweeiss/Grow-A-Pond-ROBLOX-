@@ -8,17 +8,17 @@ local world = require(shared.jecs_world)
 
 local fishParts : {Part} = workspace:FindFirstChild("Fishes")
 
-for i=1,5 do
+for i=1,10 do
     local vel = vector.create(math.random(-10,10), math.random(-10,10), math.random(-10,10))
-    local id = fishSystem.create(CFrame.identity, vel, math.random(5, 20))
-    fishParts[id].CFrame = CFrame.identity
+    local id = fishSystem.create(CFrame.new(0,10,0), vel, math.random(5, 20))
+    fishParts[id].CFrame = CFrame.new(0,10,0)
 end
 
 rns.PostSimulation:Connect(function(dt)
     fishGroupSystem.solve(dt)
 
     -- Rendering (TODO: do it on client)
-    for fish, fishVelocity : vector in world:query(components.Velocity):with(components.fish) do
-        fishParts[fish].Position += fishVelocity * dt
+    for fish, fishCFrame : CFrame in world:query(components.CFrame):with(components.fish) do
+        fishParts[fish].CFrame = fishCFrame
     end
 end)
