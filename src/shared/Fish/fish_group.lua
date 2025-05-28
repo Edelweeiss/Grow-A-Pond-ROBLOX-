@@ -1,4 +1,5 @@
 local rs = game:GetService("ReplicatedStorage")
+local jecs = require(rs:WaitForChild("Pkgs").jecs_nightly)
 local shared = rs:WaitForChild("Shared")
 local world = require(shared.jecs_world)
 local components = require(shared.jecs_components)
@@ -60,8 +61,8 @@ function CheckForObstruction(fishCFrame : CFrame, currVelocity : vector, maxSpee
     return unobstructedForce
 end
 
-function system.solve(dt : number)
-    for fish, fishCFrame : CFrame, fishVelocity : vector, fishMaxSpeed : number in world:query(components.CFrame, components.Velocity, components.MaxSpeed):with(components.fish) do
+function system.solve(fishType :  jecs.Entity, dt : number)
+    for fish, fishCFrame : CFrame, fishVelocity : vector, fishMaxSpeed : number in world:query(components.CFrame, components.Velocity, components.MaxSpeed):with(fishType) do
         local acceleration = vector.zero
         local direction = vector.zero
 
@@ -69,7 +70,7 @@ function system.solve(dt : number)
         local avgAdjDir = vector.zero
         local adjFishes = 0
 
-        for adjFish, adjFishCFrame : CFrame, adjFishVelocity : vector in world:query(components.CFrame, components.Velocity):with(components.fish) do
+        for adjFish, adjFishCFrame : CFrame, adjFishVelocity : vector in world:query(components.CFrame, components.Velocity):with(fishType) do
             if fish == adjFish then continue end
 
             local disp = adjFishCFrame.Position - fishCFrame.Position
