@@ -3,6 +3,9 @@ local rns = game:GetService("RunService")
 local players = game:GetService("Players")
 
 local shared = rs:WaitForChild("Shared")
+local pkgs = rs:WaitForChild("Pkgs")
+local networkStructs = require(shared.networkStructs)
+local squash = require(pkgs.squash)
 local fishSystem = require(shared.Fish.fish)
 local fishGroupSystem = require(shared.Fish.fish_group)
 local fishesData = require(shared.Fish.data)
@@ -17,7 +20,7 @@ local fishes = {
     [components.cod] = {}
 }
 
-for i=1,100 do
+for i=1,10 do
     local vel = vector.create(math.random(-10,10), math.random(-10,10), math.random(-10,10))
     local cframe = CFrame.new(0,10,0)
     local id = fishSystem.create(components.tuna, cframe, vel, math.random(5, 20))
@@ -37,8 +40,10 @@ end)
 
 local lastSim = os.clock()
 local lastRender = os.clock()
-local simulationInterval = 0.005
+local simulationInterval = 1
 local renderingInterval = 0.05
+
+-- local cursor = squash.cursor()
 
 task.delay(2, function()
     rns.PostSimulation:Connect(function(dt)
@@ -52,8 +57,17 @@ task.delay(2, function()
         if os.clock() - lastRender < renderingInterval then return end
         lastRender = os.clock()
 
-        for fish, fishCFrame : CFrame in world:query(components.CFrame):with(components.fish) do
-            remotes.UpdateFish:FireAllClients(fishCFrame, "Tuna", fish)
+        for fish, fishCFrame : CFrame in world:query(components.CFrame):with(components.fish):with(components.tuna) do
+            local cursor = squash.cursor()
+
+            networkStructs.fishSerdes.ser(cursor, {
+                cframe = fishCFrame,
+                fishType = "Tuna",
+                id = fish
+            })
+
+            remotes.UpdateFish:FireAllClients(squash.tobuffer(cursor))
+            -- cursor.Pos = 0
         end
     end)
 end)
