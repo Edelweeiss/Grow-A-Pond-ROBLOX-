@@ -22,41 +22,20 @@ RAY_PARAMS.FilterType = Enum.RaycastFilterType.Exclude
 RAY_PARAMS.FilterDescendantsInstances = {workspace.Fishes}
 
 local target = Vector3.new(0,10,0)
-local DIRECTIONS = utils.GetDirections(60)
 
 function SteerTowards(v : vector, currVelocity : vector, maxSpeed : number)
     local newV = vector.normalize(v) * maxSpeed - currVelocity
     return utils.ClampMagnitude(newV, MAX_STEERING_SPEED)
 end
 
-function FindUnobstructedDirection(fishCFrame : CFrame) : (Vector3, boolean?)
-    local bestDir = fishCFrame.LookVector
-    local foundBest = false
-
-    for i, _dir in DIRECTIONS do
-        local dir : Vector3 = fishCFrame:VectorToWorldSpace(_dir)
-        if fishCFrame.LookVector:Dot(dir) > 0.5 then continue end
-
-        local res = workspace:Raycast(fishCFrame.Position, _dir.Unit * MAX_VIEW_RANGE, RAY_PARAMS)
-        local isPathObstructed = res and res.Instance
-
-        if isPathObstructed then continue end
-        
-        bestDir = dir
-        foundBest = true
-        break
-    end
-
-    return bestDir, foundBest
-end
-
+-- Performance mode currently
 function CheckForObstruction(fishCFrame : CFrame, currVelocity : vector, maxSpeed : number) : Vector3
     local ray = workspace:Raycast(fishCFrame.Position, fishCFrame.LookVector * MAX_VIEW_RANGE, RAY_PARAMS)
     if not ray then return Vector3.zero end
     
-    local unobstructedDir, foundBest = FindUnobstructedDirection(fishCFrame)
-    local unobstructedForce = SteerTowards(unobstructedDir, currVelocity, maxSpeed) * OBSTACLE_COEFFCIENT
-    if not foundBest or unobstructedForce ~= unobstructedForce then return Vector3.zero end
+    local lookingDir = ray.Position - fishCFrame.Position
+    local unobstructedDir = lookingDir - 2 * ray.Normal * (vector.dot(lookingDir, ray.Normal))
+    local unobstructedForce = SteerTowards(unobstructedDir, currVelocity, maxSpeed) * OBSTACLE_COEFFCIENT * (1/lookingDir.Magnitude)
     
     return unobstructedForce
 end
@@ -71,7 +50,7 @@ function system.solve(fishType :  jecs.Entity, dt : number)
         local adjFishes = 0
 
         for adjFish, adjFishCFrame : CFrame, adjFishVelocity : vector in world:query(components.CFrame, components.Velocity):with(fishType) do
-            if fish == adjFish then continue end
+            if fish == adjFish or (fishCFrame.Position - adjFishCFrame.Position).Magnitude > 10 then continue end
 
             local disp = adjFishCFrame.Position - fishCFrame.Position
             if vector.magnitude(disp) <= MAX_SPERATION_DIST then
@@ -115,12 +94,12 @@ function system.solve(fishType :  jecs.Entity, dt : number)
             end
         end
 
-        local randomJitter = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.2
-        acceleration += randomJitter
+        -- local randomJitter = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.2
+        -- acceleration += randomJitter
 
         local vel = utils.ClampMagnitude(fishVelocity + (acceleration * dt), fishMaxSpeed)
         local newPos = fishCFrame.Position + vel * dt
-        local newCFrame = CFrame.lookAt(newPos, newPos + vel:Lerp(fishVelocity, 0.8))
+        local newCFrame = CFrame.lookAt(newPos, newPos + vel)
         world:set(fish, components.Velocity, vel)
         world:set(fish, components.CFrame, newCFrame)
     end

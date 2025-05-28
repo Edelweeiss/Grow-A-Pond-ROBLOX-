@@ -22,21 +22,38 @@ for i=1,100 do
     local cframe = CFrame.new(0,10,0)
     local id = fishSystem.create(components.tuna, cframe, vel, math.random(5, 20))
     table.insert(fishes[components.tuna], id)
+    remotes.CreateFish:FireAllClients(fishesData[components.tuna], id) -- Build asset
+    task.wait()
 end
 
 players.PlayerAdded:Connect(function(player)
     for type, fishTypes in fishes do
         for _, fish in fishTypes do
             remotes.CreateFish:FireAllClients(fishesData[type], fish) -- Build asset
+            task.wait()
         end
     end
 end)
 
-rns.PostSimulation:Connect(function(dt)
-    fishGroupSystem.solve(components.tuna, dt)
+local lastSim = os.clock()
+local lastRender = os.clock()
+local simulationInterval = 0.005
+local renderingInterval = 0.05
 
-    -- Updating client
-    for fish, fishCFrame : CFrame in world:query(components.CFrame):with(components.fish) do
-        remotes.UpdateFish:FireAllClients(fishCFrame, "Tuna", fish)
-    end
+task.delay(2, function()
+    rns.PostSimulation:Connect(function(dt)
+        if os.clock() - lastSim < simulationInterval then return end
+        lastSim = os.clock()
+
+        fishGroupSystem.solve(components.tuna, dt)
+    end)
+
+    rns.PostSimulation:Connect(function(dt)
+        if os.clock() - lastRender < renderingInterval then return end
+        lastRender = os.clock()
+
+        for fish, fishCFrame : CFrame in world:query(components.CFrame):with(components.fish) do
+            remotes.UpdateFish:FireAllClients(fishCFrame, "Tuna", fish)
+        end
+    end)
 end)

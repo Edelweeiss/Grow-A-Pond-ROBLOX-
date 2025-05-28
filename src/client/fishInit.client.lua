@@ -8,6 +8,6 @@ remotes.CreateFish.OnClientEvent:Connect(function(fishData, entityID)
     fishAssetBuilder.create(fishData, entityID)
 end)
 
-remotes.UpdateFish.OnClientEvent:Connect(function(fishCFrame, fishType, entityID)
-    fishAssetBuilder.updateFish(fishType, entityID, fishCFrame)
+remotes.UpdateFish.OnClientEvent:Connect(function(fishCFrame, fishType, fish)
+    fishAssetBuilder.updateFish(fishType, fish, fishCFrame)
 end)
