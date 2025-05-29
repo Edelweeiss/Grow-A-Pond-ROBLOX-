@@ -21,7 +21,10 @@ local fishes = {
     [components.cod] = {}
 }
 
-for i=1,100 do
+local MAX_FISHES = 300
+local BATCH_SIZE = math.floor(MAX_FISHES/3)
+
+for i=1,MAX_FISHES do
     local vel = vector.create(math.random(-10,10), math.random(-10,10), math.random(-10,10))
     local cframe = CFrame.new(0,10,0)
     local id = fishSystem.create(components.tuna, cframe, vel, math.random(5, 20))
@@ -44,26 +47,7 @@ local lastRender = os.clock()
 local simulationInterval = 0.01
 local renderingInterval = 0.1
 
-local dirThreshold = math.cos(math.rad(20))
-local velThreshold = 3.0
-
 local cursor = squash.cursor()
-
-function findOrCreateGroup(fishes, cframe : CFrame, velocity : vector)
-    for _, group in fishes do
-        if cframe.LookVector:Dot(group.LookVector) > (1 - dirThreshold) and (group.velocity - velocity).Magnitude < velThreshold then
-            return group
-        end
-    end
-
-    local newGroup = {
-        LookVector = cframe.LookVector,
-        velocity = velocity,
-        members = {}
-    }
-    table.insert(fishes, newGroup)
-    return newGroup
-end
 
 task.delay(2, function()
     rns.PostSimulation:Connect(function(dt)
@@ -78,27 +62,35 @@ task.delay(2, function()
         lastRender = os.clock()
 
         local fishes = {}
+        local count = 0
 
-        for fish, fishCFrame : CFrame, fishVelocity : vector in world:query(components.CFrame, components.Velocity):with(components.fish):with(components.tuna) do
-            local group = findOrCreateGroup(fishes, fishCFrame, fishVelocity)
-            table.insert(group.members, {
+        cursor.Pos = 0
+
+        for fish, fishCFrame : CFrame in world:query(components.CFrame, components.Velocity):with(components.fish):with(components.tuna) do
+            local position, yaw8 = network.CompressCFrame(fishCFrame)
+
+            table.insert(fishes, {
                 id = fish,
-                cframe = fishCFrame
+                position = position,
+                yaw8 = yaw8
             })
-        end
 
-        for _, group in fishes do
-            for _, fish in group.members do
-                local position, yaw8 = network.CompressCFrame(fish.cframe)
-                networkStructs.fishSerdes.ser(cursor, {
-                    id = fish.id,
-                    position = position,
-                    yaw8 = yaw8
-                })
+            count += 1
+
+            if count >= BATCH_SIZE then
+                for _, data in fishes do
+                    networkStructs.fishSerdes.ser(cursor, {
+                        id = data.id,
+                        position = data.position,
+                        yaw8 = data.yaw8
+                    })
+                end
+
+                remotes.UpdateFish:FireAllClients(squash.tobuffer(cursor))
+                cursor.Pos = 0
+                table.clear(fishes)
+                count = 0
             end
-
-            remotes.UpdateFish:FireAllClients(squash.tobuffer(cursor))
-            cursor.Pos = 0
         end
     end)
 end)
