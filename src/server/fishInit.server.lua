@@ -5,6 +5,7 @@ local players = game:GetService("Players")
 local shared = rs:WaitForChild("Shared")
 local pkgs = rs:WaitForChild("Pkgs")
 local networkStructs = require(shared.networkStructs)
+local network = require(shared.network)
 local squash = require(pkgs.squash)
 local fishSystem = require(shared.Fish.fish)
 local fishGroupSystem = require(shared.Fish.fish_group)
@@ -41,7 +42,7 @@ end)
 local lastSim = os.clock()
 local lastRender = os.clock()
 local simulationInterval = 0.01
-local renderingInterval = 0.08
+local renderingInterval = 0.1
 
 local dirThreshold = math.cos(math.rad(20))
 local velThreshold = 3.0
@@ -88,9 +89,11 @@ task.delay(2, function()
 
         for _, group in fishes do
             for _, fish in group.members do
+                local position, yaw8 = network.CompressCFrame(fish.cframe)
                 networkStructs.fishSerdes.ser(cursor, {
                     id = fish.id,
-                    cframe = fish.cframe
+                    position = position,
+                    yaw8 = yaw8
                 })
             end
 

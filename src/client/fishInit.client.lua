@@ -5,6 +5,7 @@ local remotes = rs:WaitForChild("Remotes")
 local pkgs = rs:WaitForChild("Pkgs")
 local shared = rs:WaitForChild("Shared")
 
+local network = require(shared.network)
 local networkStructs = require(shared.networkStructs)
 local squash = require(pkgs.squash)
 local systems = script.Parent.systems
@@ -23,7 +24,7 @@ remotes.UpdateFish.OnClientEvent:Connect(function(buf : buffer)
     while cursor.Pos ~= 0 do
         local data = networkStructs.fishSerdes.des(cursor)
         table.insert(ids, data.id)
-        table.insert(cframes, data.cframe)
+        table.insert(cframes, network.DecompressCFrame(data.position, data.yaw8))
 
         -- if not fishStates[data.id] then
         --     fishStates[data.id] = {
