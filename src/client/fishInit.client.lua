@@ -2,12 +2,8 @@ local rs = game:GetService("ReplicatedStorage")
 local rns = game:GetService("RunService")
 
 local remotes = rs:WaitForChild("Remotes")
-local pkgs = rs:WaitForChild("Pkgs")
 local shared = rs:WaitForChild("Shared")
 
-local network = require(shared.network)
-local networkStructs = require(shared.networkStructs)
-local squash = require(pkgs.squash)
 local systems = script.Parent.systems
 local fishAssetBuilder = require(systems.fishAssetBuilder)
 local fishSystem = require(shared.Fish.fish)
@@ -19,19 +15,6 @@ local world = require(shared.jecs_world)
 remotes.CreateFish.OnClientEvent:Connect(function(fishType, entityID, vel, cframe, maxSpeed)
     fishSystem.create(fishType, cframe, vel, maxSpeed)
     fishAssetBuilder.create(fishesData[fishType], entityID)
-end)
-
-remotes.UpdateFish.OnClientEvent:Connect(function(buf : buffer)
-    local cursor = squash.frombuffer(buf)
-    local cframes = {}
-    local ids = {}
-    while cursor.Pos ~= 0 do
-        local data = networkStructs.fishSerdes.des(cursor)
-        table.insert(ids, data.id)
-        table.insert(cframes, network.DecompressCFrame(data.position, data.yaw8))
-    end
-
-    fishAssetBuilder.updateFlock(ids, cframes)
 end)
 
 local lastSim = os.clock()
