@@ -5,7 +5,6 @@ local squash = require(pkgs.squash)
 local structs = {}
 
 structs.fishSerdes = squash.record {
-    -- cframe = squash.T(squash.CFrame(squash.int(4))),
     position = squash.T(squash.Vector3int16()),
     yaw8 = squash.T(squash.uint(1)),
     id = squash.T(squash.uint(2))

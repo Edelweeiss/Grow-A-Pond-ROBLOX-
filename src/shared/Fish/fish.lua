@@ -6,8 +6,8 @@ local components = require(shared.jecs_components)
 
 local system = {}
 
-function system.create(fishType : jecs.Entity, intialCFrame : CFrame, initialVelocity : vector, maxSpeed : number)
-    local fish = world:entity()
+function system.create(fishType : jecs.Entity, intialCFrame : CFrame, initialVelocity : vector, maxSpeed : number, id : jecs.Entity?)
+    local fish = world:entity(id)
     world:set(fish, components.CFrame, intialCFrame)
     world:set(fish, components.Velocity, initialVelocity)
     world:set(fish, components.MaxSpeed, maxSpeed)

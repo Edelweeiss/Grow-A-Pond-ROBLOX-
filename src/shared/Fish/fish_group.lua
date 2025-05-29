@@ -40,8 +40,8 @@ function CheckForObstruction(fishCFrame : CFrame, currVelocity : vector, maxSpee
     return unobstructedForce
 end
 
-function system.solve(fishType :  jecs.Entity, dt : number)
-    for fish, fishCFrame : CFrame, fishVelocity : vector, fishMaxSpeed : number in world:query(components.CFrame, components.Velocity, components.MaxSpeed):with(fishType) do
+function system.solve(fishType : jecs.Entity, dt : number)
+    for fish, fishCFrame, fishVelocity, fishMaxSpeed in world:query(components.CFrame, components.Velocity, components.MaxSpeed):with(fishType):iter() do
         local acceleration = vector.zero
         local direction = vector.zero
 
@@ -49,7 +49,7 @@ function system.solve(fishType :  jecs.Entity, dt : number)
         local avgAdjDir = vector.zero
         local adjFishes = 0
 
-        for adjFish, adjFishCFrame : CFrame, adjFishVelocity : vector in world:query(components.CFrame, components.Velocity):with(fishType) do
+        for adjFish, adjFishCFrame, adjFishVelocity in world:query(components.CFrame, components.Velocity):with(fishType):iter() do
             if fish == adjFish or (fishCFrame.Position - adjFishCFrame.Position).Magnitude > 10 then continue end
 
             local disp = adjFishCFrame.Position - fishCFrame.Position
@@ -93,9 +93,6 @@ function system.solve(fishType :  jecs.Entity, dt : number)
                 acceleration += seprationForce
             end
         end
-
-        -- local randomJitter = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.2
-        -- acceleration += randomJitter
 
         local vel = utils.ClampMagnitude(fishVelocity + (acceleration * dt), fishMaxSpeed)
         local newPos = fishCFrame.Position + vel * dt
