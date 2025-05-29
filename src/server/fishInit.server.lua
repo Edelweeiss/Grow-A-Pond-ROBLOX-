@@ -87,18 +87,15 @@ task.delay(2, function()
         end
 
         for _, group in fishes do
-            local buffers = {}
-
             for _, fish in group.members do
                 networkStructs.fishSerdes.ser(cursor, {
                     id = fish.id,
                     cframe = fish.cframe
                 })
-                table.insert(buffers, squash.tobuffer(cursor))
-                cursor.Pos = 0
             end
 
-            remotes.UpdateFish:FireAllClients(buffers)
+            remotes.UpdateFish:FireAllClients(squash.tobuffer(cursor))
+            cursor.Pos = 0
         end
     end)
 end)

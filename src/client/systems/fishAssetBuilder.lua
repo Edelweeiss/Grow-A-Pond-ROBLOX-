@@ -21,6 +21,21 @@ function system.updateFish(entityID : number, cframe : CFrame)
     fish.CFrame = cframe
 end
 
+function system.updateFlock(entityIDs : {number}, cframes : {CFrame})
+    local parts = {}
+    local validCFs = {}
+
+    for i, id in ipairs(entityIDs) do
+        local fish : BasePart = workspace.Fishes:FindFirstChild(id)
+        if not fish then continue end
+
+        table.insert(parts, fish)
+        table.insert(validCFs, cframes[i])
+    end
+
+    workspace:BulkMoveTo(parts, validCFs)
+end
+
 function system.getFishCFrame(entityID : number)
     local fish : BasePart = workspace.Fishes:FindFirstChild(entityID)
     if not fish then
