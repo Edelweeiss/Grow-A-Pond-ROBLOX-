@@ -9,6 +9,11 @@ components.CFrame = world:component() :: jecs.Entity<CFrame>
 components.Velocity = world:component() :: jecs.Entity<vector>
 components.MaxSpeed = world:component() :: jecs.Entity<number>
 
+-- Fish only attribs
+components.growth = world:component() :: jecs.Entity<number>
+components.growthTime = world:component() :: jecs.Entity<number>
+components.weight = world:component() :: jecs.Entity<number>
+
 -- Common type
 components.fish = world:component() :: jecs.Entity
 

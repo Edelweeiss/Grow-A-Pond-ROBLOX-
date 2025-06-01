@@ -4,12 +4,18 @@ local components = require(shared.jecs_components)
 
 return table.freeze({
     [components.tuna] = {
-        name = "Tuna"
+        name = "Tuna",
+        growthBias = 20,
+        weightBias = 15
     },
     [components.salmon] = {
-        name = "Salmon"
+        name = "Salmon",
+        growthBias = 25,
+        weightBias = 13
     },
     [components.cod] = {
-        name = "Cod"
+        name = "Cod",
+        growthBias = 20,
+        weightBias = 14
     }
 })

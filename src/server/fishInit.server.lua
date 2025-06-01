@@ -1,50 +1,71 @@
 local rs = game:GetService("ReplicatedStorage")
 local rns = game:GetService("RunService")
-local players = game:GetService("Players")
 
 local shared = rs:WaitForChild("Shared")
-local fishSystem = require(shared.Fish.fish)
+local pkgs = rs:WaitForChild("Pkgs")
+local networkStructs = require(shared.networkStructs)
+local squash = require(pkgs.squash)
+local fishSpawner = require(script.Parent.systems.FishSpawner)
 local fishGroupSystem = require(shared.Fish.fish_group)
 local components = require(shared.jecs_components)
 local world = require(shared.jecs_world)
 
 local remotes = rs:WaitForChild("Remotes")
 
-local fishes = {
-    [components.tuna] = {},
-    [components.salmon] = {},
-    [components.cod] = {}
-}
+local MAX_FISHES = 100
+local BATCH_SIZE = math.floor(MAX_FISHES/2)
 
-local MAX_FISHES = 300
-
-for i=1,MAX_FISHES do
-    local vel = vector.create(math.random(-10,10), math.random(-10,10), math.random(-10,10))
-    local cframe = CFrame.new(0,10,0)
-    local maxSpeed = math.random(5, 20)
-    local id = fishSystem.create(components.tuna, cframe, vel, maxSpeed)
-    table.insert(fishes[components.tuna], id)
-    remotes.CreateFish:FireAllClients(components.tuna, id, vel, cframe, maxSpeed) -- Build asset
+for i=1, MAX_FISHES do
+    fishSpawner.Spawn(components.tuna, vector.create(math.random(-10,10),math.random(-10,10),math.random(-10,10)), CFrame.new(0,20,0), math.random(5,25))
 end
 
-players.PlayerAdded:Connect(function(player)
-    for fishType, fishTypes in fishes do
-        for _, fish in fishTypes do
-            local vel = world:get(fish, components.Velocity)
-            local cframe = world:get(fish, components.CFrame)
-            local maxSpeed = world:get(fish, components.MaxSpeed)
-            remotes.CreateFish:FireAllClients(fishType, fish, vel, cframe, maxSpeed) -- Build asset
-            task.wait()
-        end
-    end
-end)
-
-local lastSim = os.clock()
+local lastSim = workspace:GetServerTimeNow()
+local lastRender = workspace:GetServerTimeNow()
 local simulationInterval = 0.01
+local renderingInterval = 3
+
+local cursor = squash.cursor()
 
 rns.PostSimulation:Connect(function(dt)
-    if os.clock() - lastSim < simulationInterval then return end
-    lastSim = os.clock()
+    if workspace:GetServerTimeNow() - lastSim < simulationInterval then return end
+    lastSim = workspace:GetServerTimeNow()
 
     fishGroupSystem.solve(components.tuna, dt)
+    fishGroupSystem.solve(components.cod, dt)
+    fishGroupSystem.solve(components.salmon, dt)
+end)
+
+rns.PostSimulation:Connect(function(dt)
+    if workspace:GetServerTimeNow() - lastRender < renderingInterval then return end
+    lastRender = workspace:GetServerTimeNow()
+
+    local fishes = {}
+    local count = 0
+
+    cursor.Pos = 0
+
+    for fish, fishCFrame, fishVelocity in world:query(components.CFrame, components.Velocity):with(components.fish):iter() do
+        table.insert(fishes, {
+            id = fish,
+            velocity = fishVelocity,
+            cframe = fishCFrame
+        })
+
+        count += 1
+
+        if count >= BATCH_SIZE then
+            for _, data in fishes do
+                networkStructs.fishSerdes.ser(cursor, {
+                    id = data.id,
+                    velocity = data.velocity,
+                    cframe = data.cframe
+                })
+            end
+
+            remotes.UpdateFish:FireAllClients(squash.tobuffer(cursor))
+            cursor.Pos = 0
+            table.clear(fishes)
+            count = 0
+        end
+    end
 end)
